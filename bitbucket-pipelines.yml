@@ -1,0 +1,12 @@
+image: atlassian/default-image:3
+
+pipelines:
+  branches:
+    master:
+      - step:
+          name: Sync Master to GitHub
+          script:
+            - git config --global user.email "ian@airosoftware.com"
+            - git config --global user.name "Bitbucket CI"
+            - git remote add github https://x-access-token:${GITHUB_TOKEN}@github.com/LukeDes003/n8n-nodes-msfrog.git
+            - git push github HEAD:master --force
