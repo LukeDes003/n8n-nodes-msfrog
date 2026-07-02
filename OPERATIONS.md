@@ -16,7 +16,7 @@ This document is the operational handoff for releasing and maintaining `n8n-node
 1. Create an npm organization if your company prefers team ownership.
 2. Transfer package ownership to the org once initial publishing is complete.
 
-## 2) GitHub Repository Setup
+### 1.3 GitHub Repository Setup
 
 Set up the GitHub repo before the first release:
 
@@ -56,7 +56,7 @@ Release-related GitHub configuration:
 3. Make sure the workflow has permission to create provenance-backed publishes.
 4. Verify that tag pushes are allowed and not blocked by branch protection rules.
 
-### 2.1 Required access
+### 1.4 Required access
 
 Ensure the release engineer has:
 
@@ -64,7 +64,23 @@ Ensure the release engineer has:
 2. Publish rights on npm package: `n8n-nodes-msfrog`.
 3. Access to edit GitHub Actions settings.
 
-## 3) Repository Baseline
+### 1.5 Add the package to npm
+
+Once the account and GitHub repo are ready, the package is added by publishing it to npm:
+
+1. Make sure the package name in `package.json` is correct, for example `n8n-nodes-msfrog`.
+2. Confirm the `license` is `MIT` and the `keywords` include `n8n-community-node-package`.
+3. Confirm the GitHub repository is created and the release workflow exists at `.github/workflows/publish.yml`.
+4. From the repo root, run the validation steps first:
+   - `npm ci`
+   - `npm run lint`
+   - `npm run build`
+5. Bump the version with `npm version patch`, `npm version minor`, or `npm version major`.
+6. Commit and push the version change and tag.
+7. Let GitHub Actions publish the package from the tagged release, or run `npm publish` only if you are using the token-based fallback flow.
+8. After publishing, verify the package exists on npmjs.com and that the GitHub repo links appear correctly.
+
+## 2) Repository Baseline
 
 Before any release:
 
@@ -78,7 +94,7 @@ Before any release:
    - Client docs in `README.md`
    - Developer docs in `dev-readme.md`
 
-## 4) npm Trusted Publisher Setup (Recommended)
+## 3) npm Trusted Publisher Setup (Recommended)
 
 In npm package settings for `n8n-nodes-msfrog`:
 
@@ -94,7 +110,7 @@ Fallback if needed:
 1. Create npm granular token with publish access for this package.
 2. Add GitHub secret `NPM_TOKEN` in repo settings.
 
-## 5) Local Pre-Release Validation
+## 4) Local Pre-Release Validation
 
 Run from repo root:
 
@@ -106,7 +122,7 @@ Run from repo root:
 
 Do not release if lint or build fails.
 
-## 6) Functional Smoke Testing in n8n
+## 5) Functional Smoke Testing in n8n
 
 Validate core behavior in an n8n test environment:
 
@@ -121,9 +137,9 @@ Validate core behavior in an n8n test environment:
    - `examples/client-email-triage-sample.workflow.json`
    - `examples/client-email-triage-gmail-inbox.workflow.json`
 
-## 7) Release Procedure
+## 6) Release Procedure
 
-### 7.1 Standard release using tags
+### 6.1 Standard release using tags
 
 1. Ensure you are on latest `main`.
 2. Bump version in `package.json` (or use `npm version patch|minor|major`).
@@ -131,14 +147,14 @@ Validate core behavior in an n8n test environment:
 4. Create and push a version tag matching `v*` (example: `v0.1.1`).
 5. GitHub Actions `Publish to npm` will run automatically on tag push.
 
-### 7.2 Manual workflow runs
+### 6.2 Manual workflow runs
 
 Workflow dispatch supports two modes:
 
 1. Validation-only: set `publish=false`.
 2. Actual publish: set `publish=true`.
 
-## 8) Post-Release Verification
+## 7) Post-Release Verification
 
 After publish:
 
@@ -148,7 +164,7 @@ After publish:
 4. In clean n8n test env, install that version and run User -> Get Self.
 5. Add or update release notes/changelog.
 
-## 9) n8n Verification Submission
+## 8) n8n Verification Submission
 
 Submit through n8n Creator Portal with:
 
@@ -165,7 +181,7 @@ Checklist before submitting:
 4. Publish done via GitHub Actions with provenance.
 5. Lint/build pass on release branch.
 
-## 10) Operational Notes
+## 9) Operational Notes
 
 1. Use `main` as release source of truth.
 2. Keep workflow filename as `.github/workflows/publish.yml`.
