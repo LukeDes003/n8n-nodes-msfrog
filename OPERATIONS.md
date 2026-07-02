@@ -60,7 +60,7 @@ Release-related GitHub configuration:
 
 Ensure the release engineer has:
 
-1. Admin or maintainer rights on GitHub repo: `lgauciAiro/msfrog-n8n-community-node`.
+1. Admin or maintainer rights on GitHub repo: `LukeDes003/n8n-nodes-msfrog`.
 2. Publish rights on npm package: `n8n-nodes-msfrog`.
 3. Access to edit GitHub Actions settings.
 
@@ -100,8 +100,8 @@ In npm package settings for `n8n-nodes-msfrog`:
 
 1. Open Trusted Publishers.
 2. Add a GitHub trusted publisher with:
-   - Repository owner: `lgauciAiro`
-   - Repository: `msfrog-n8n-community-node`
+   - Repository owner: `LukeDes003`
+   - Repository: `n8n-nodes-msfrog`
    - Workflow file: `publish.yml`
    - Branch: `main` (if prompted)
 

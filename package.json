@@ -9,11 +9,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/lgauciAiro/msfrog-n8n-community-node.git"
+    "url": "https://github.com/LukeDes003/n8n-nodes-msfrog.git"
   },
-  "homepage": "https://github.com/lgauciAiro/msfrog-n8n-community-node#readme",
+  "homepage": "https://github.com/LukeDes003/n8n-nodes-msfrog#readme",
   "bugs": {
-    "url": "https://github.com/lgauciAiro/msfrog-n8n-community-node/issues"
+    "url": "https://github.com/LukeDes003/n8n-nodes-msfrog/issues"
   },
   "engines": {
     "node": ">=22 <23"

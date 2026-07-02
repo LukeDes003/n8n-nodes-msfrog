@@ -83,8 +83,8 @@ Import one into n8n and replace credentials with your own.
 
 ## Support
 
-- Report issues: https://github.com/lgauciAiro/msfrog-n8n-community-node/issues
-- Repository: https://github.com/lgauciAiro/msfrog-n8n-community-node
+- Report issues: https://github.com/LukeDes003/n8n-nodes-msfrog/issues
+- Repository: https://github.com/LukeDes003/n8n-nodes-msfrog
 
 ## Developer Documentation
 
