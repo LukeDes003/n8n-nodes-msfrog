@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-msfrog",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "n8n community node for MSFrog API access",
   "author": {
     "name": "Leithon Gauci",
@@ -9,7 +9,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/LukeDes003/n8n-nodes-msfrog.git"
+    "url": "git+https://github.com/LukeDes003/n8n-nodes-msfrog.git"
   },
   "homepage": "https://github.com/LukeDes003/n8n-nodes-msfrog#readme",
   "bugs": {
