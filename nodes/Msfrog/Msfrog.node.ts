@@ -33,7 +33,7 @@ export class Msfrog implements INodeType {
 		name: 'msfrog',
 		icon: { light: 'file:../../icons/msfrog.svg', dark: 'file:../../icons/msfrog.dark.svg' },
 		group: ['transform'],
-		version: [1, 2],
+		version: [1],
 		defaultVersion: 1,
 		subtitle: '={{$parameter["resource"] + ": " + $parameter["operation"]}}',
 		description: 'Access the MSFrog API',
@@ -508,62 +508,8 @@ export class Msfrog implements INodeType {
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
-		if (this.getNode().typeVersion >= 2) {
-			throw new NodeOperationError(this.getNode(), new Error('Version 2 is a placeholder only. Use version 1.'), {
-				itemIndex: 0,
-			});
-		}
-
 		const inputItems = this.getInputData();
 		const returnData: INodeExecutionData[] = [];
-
-		const requestApi = async <T>(
-			method: 'GET' | 'POST' | 'PUT' | 'DELETE',
-			path: string,
-			body?: IDataObject,
-		): Promise<T> => {
-			const baseUrl = this.getNodeParameter('baseUrl', 0) as string;
-			const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-
-			const options: IHttpRequestOptions = {
-				method,
-				url: `${normalizedBaseUrl}${path}`,
-				json: true,
-			};
-
-			if (body !== undefined) {
-				options.body = body;
-			}
-
-			try {
-				return this.helpers.httpRequestWithAuthentication.call(this, 'msfrogApi', options) as Promise<T>;
-			} catch (error) {
-				const message = (error as Error)?.message ?? '';
-				if (!message.includes('Node does not have any credentials set')) {
-					throw new NodeApiError(this.getNode(), error as JsonObject);
-				}
-
-				// Fallback for environments where helper lookup can fail despite a linked credential.
-				const credentials = await this.getCredentials('msfrogApi');
-				const credentialToken = String(credentials.accessToken ?? '');
-				const credentialBaseUrlRaw = String(credentials.baseUrl ?? '').trim();
-				const credentialBaseUrl = credentialBaseUrlRaw !== '' ? credentialBaseUrlRaw : normalizedBaseUrl;
-				const normalizedCredentialBaseUrl = credentialBaseUrl.endsWith('/')
-					? credentialBaseUrl.slice(0, -1)
-					: credentialBaseUrl;
-
-				const manualOptions: IHttpRequestOptions = {
-					...options,
-					url: `${normalizedCredentialBaseUrl}${path}`,
-					headers: {
-						...(options.headers ?? {}),
-						Authorization: `Bearer ${credentialToken}`,
-					},
-				};
-
-				return this.helpers.httpRequest.call(this, manualOptions) as Promise<T>;
-			}
-		};
 
 		const parseJsonInput = <T>(value: unknown, fallback: T): T => {
 			if (value === null || value === undefined || value === '') {
@@ -584,6 +530,54 @@ export class Msfrog implements INodeType {
 		};
 
 		for (let itemIndex = 0; itemIndex < inputItems.length; itemIndex++) {
+			const requestApi = async <T>(
+				method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+				path: string,
+				body?: IDataObject,
+			): Promise<T> => {
+				const baseUrl = this.getNodeParameter('baseUrl', itemIndex) as string;
+				const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+
+				const options: IHttpRequestOptions = {
+					method,
+					url: `${normalizedBaseUrl}${path}`,
+					json: true,
+				};
+
+				if (body !== undefined) {
+					options.body = body;
+				}
+
+				try {
+					return this.helpers.httpRequestWithAuthentication.call(this, 'msfrogApi', options) as Promise<T>;
+				} catch (error) {
+					const message = (error as Error)?.message ?? '';
+					if (!message.includes('Node does not have any credentials set')) {
+						throw new NodeApiError(this.getNode(), error as JsonObject, { itemIndex });
+					}
+
+					// Fallback for environments where helper lookup can fail despite a linked credential.
+					const credentials = await this.getCredentials('msfrogApi');
+					const credentialToken = String(credentials.accessToken ?? '');
+					const credentialBaseUrlRaw = String(credentials.baseUrl ?? '').trim();
+					const credentialBaseUrl = credentialBaseUrlRaw !== '' ? credentialBaseUrlRaw : normalizedBaseUrl;
+					const normalizedCredentialBaseUrl = credentialBaseUrl.endsWith('/')
+						? credentialBaseUrl.slice(0, -1)
+						: credentialBaseUrl;
+
+					const manualOptions: IHttpRequestOptions = {
+						...options,
+						url: `${normalizedCredentialBaseUrl}${path}`,
+						headers: {
+							...(options.headers ?? {}),
+							Authorization: `Bearer ${credentialToken}`,
+						},
+					};
+
+					return this.helpers.httpRequest.call(this, manualOptions) as Promise<T>;
+				}
+			};
+
 			try {
 				const resource = this.getNodeParameter('resource', itemIndex) as MsfrogResource;
 				const operation = this.getNodeParameter('operation', itemIndex) as MsfrogOperation;
