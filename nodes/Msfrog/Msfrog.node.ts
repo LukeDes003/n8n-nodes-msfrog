@@ -511,7 +511,7 @@ export class Msfrog implements INodeType {
 		const inputItems = this.getInputData();
 		const returnData: INodeExecutionData[] = [];
 
-		const parseJsonInput = <T>(value: unknown, fallback: T): T => {
+		const parseJsonInput = <T>(value: unknown, fallback: T, itemIndex: number): T => {
 			if (value === null || value === undefined || value === '') {
 				return fallback;
 			}
@@ -521,7 +521,7 @@ export class Msfrog implements INodeType {
 					return JSON.parse(value) as T;
 				} catch {
 					throw new NodeOperationError(this.getNode(), new Error('Invalid JSON input.'), {
-						itemIndex: 0,
+						itemIndex,
 					});
 				}
 			}
@@ -641,7 +641,7 @@ export class Msfrog implements INodeType {
 					const workflowUuid = this.getNodeParameter('workflowUuid', itemIndex) as string;
 					const name = this.getNodeParameter('name', itemIndex) as string;
 					const description = this.getNodeParameter('description', itemIndex, '') as string;
-					const stepAssignments = parseJsonInput<IDataObject[]>(this.getNodeParameter('stepAssignments', itemIndex, '[]'), []);
+					const stepAssignments = parseJsonInput<IDataObject[]>(this.getNodeParameter('stepAssignments', itemIndex, '[]'), [], itemIndex);
 					const result = await requestApi<IDataObject>('POST', '/api/userworkflows', {
 						workflow_uuid: workflowUuid,
 						name,
@@ -657,7 +657,7 @@ export class Msfrog implements INodeType {
 					const workflowEntryUuid = this.getNodeParameter('workflowEntryUuid', itemIndex) as string;
 					const name = this.getNodeParameter('name', itemIndex) as string;
 					const description = this.getNodeParameter('description', itemIndex, '') as string;
-					const stepAssignments = parseJsonInput<IDataObject[]>(this.getNodeParameter('stepAssignments', itemIndex, '[]'), []);
+					const stepAssignments = parseJsonInput<IDataObject[]>(this.getNodeParameter('stepAssignments', itemIndex, '[]'), [], itemIndex);
 					const result = await requestApi<IDataObject>('PUT', `/api/userworkflows/${workflowEntryUuid}`, {
 						name,
 						description,
@@ -687,7 +687,7 @@ export class Msfrog implements INodeType {
 
 				if (resource === 'workflowEntry' && operation === 'updateStep') {
 					const stepUuid = this.getNodeParameter('stepUuid', itemIndex) as string;
-					const stepData = parseJsonInput<IDataObject>(this.getNodeParameter('stepData', itemIndex, '{}'), {});
+					const stepData = parseJsonInput<IDataObject>(this.getNodeParameter('stepData', itemIndex, '{}'), {}, itemIndex);
 					const result = await requestApi<IDataObject>('PUT', `/api/userworkflows/steps/${stepUuid}`, stepData);
 					returnData.push({ json: result, pairedItem: { item: itemIndex } });
 					continue;
@@ -733,7 +733,7 @@ export class Msfrog implements INodeType {
 				}
 
 				if (resource === 'task' && operation === 'create') {
-					const taskData = parseJsonInput<IDataObject>(this.getNodeParameter('taskData', itemIndex, '{}'), {});
+					const taskData = parseJsonInput<IDataObject>(this.getNodeParameter('taskData', itemIndex, '{}'), {}, itemIndex);
 					const result = await requestApi<IDataObject>('POST', '/api/tasks', taskData);
 					returnData.push({ json: result, pairedItem: { item: itemIndex } });
 					continue;
@@ -741,7 +741,7 @@ export class Msfrog implements INodeType {
 
 				if (resource === 'task' && operation === 'update') {
 					const taskUuid = this.getNodeParameter('taskUuid', itemIndex) as string;
-					const taskData = parseJsonInput<IDataObject>(this.getNodeParameter('taskData', itemIndex, '{}'), {});
+					const taskData = parseJsonInput<IDataObject>(this.getNodeParameter('taskData', itemIndex, '{}'), {}, itemIndex);
 					const result = await requestApi<IDataObject>('PUT', `/api/tasks/${taskUuid}`, taskData);
 					returnData.push({ json: result, pairedItem: { item: itemIndex } });
 					continue;
