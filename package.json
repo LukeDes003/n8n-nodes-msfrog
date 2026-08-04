@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-msfrog",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "n8n community node for MSFrog API access",
   "author": {
     "name": "Leithon Gauci",
