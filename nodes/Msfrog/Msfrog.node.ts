@@ -383,6 +383,19 @@ export class Msfrog implements INodeType {
 				},
 			},
 			{
+				displayName: 'Meta (JSON)',
+				name: 'meta',
+				type: 'json',
+				default: '{}',
+				description: 'Optional hidden metadata to store with the entry (e.g. email_ids, thread_ids). Not visible in the frontend.',
+				displayOptions: {
+					show: {
+						resource: ['workflowEntry'],
+						operation: ['create', 'update'],
+					},
+				},
+			},
+			{
 				displayName: 'Company UUID',
 				name: 'companyUuid',
 				type: 'string',
@@ -693,13 +706,15 @@ export class Msfrog implements INodeType {
 					const name = this.getNodeParameter('name', itemIndex) as string;
 					const description = this.getNodeParameter('description', itemIndex, '') as string;
 					const stepAssignments = parseJsonInput<IDataObject[]>(this.getNodeParameter('stepAssignments', itemIndex, '[]'), [], itemIndex);
-					const result = await requestApi<IDataObject>('POST', '/api/userworkflows', {
+					const metaRaw = parseJsonInput<IDataObject>(this.getNodeParameter('meta', itemIndex, '{}'), {}, itemIndex);
+					const body: IDataObject = {
 						workflow_uuid: workflowUuid,
 						name,
 						description,
 						step_assignments: stepAssignments,
-					});
-
+					};
+					if (metaRaw && Object.keys(metaRaw).length > 0) body.meta = metaRaw;
+					const result = await requestApi<IDataObject>('POST', '/api/userworkflows', body);
 					returnData.push({ json: result, pairedItem: { item: itemIndex } });
 					continue;
 				}
@@ -709,12 +724,14 @@ export class Msfrog implements INodeType {
 					const name = this.getNodeParameter('name', itemIndex) as string;
 					const description = this.getNodeParameter('description', itemIndex, '') as string;
 					const stepAssignments = parseJsonInput<IDataObject[]>(this.getNodeParameter('stepAssignments', itemIndex, '[]'), [], itemIndex);
-					const result = await requestApi<IDataObject>('PUT', `/api/userworkflows/${workflowEntryUuid}`, {
+					const metaRaw = parseJsonInput<IDataObject>(this.getNodeParameter('meta', itemIndex, '{}'), {}, itemIndex);
+					const body: IDataObject = {
 						name,
 						description,
 						step_assignments: stepAssignments,
-					});
-
+					};
+					if (metaRaw && Object.keys(metaRaw).length > 0) body.meta = metaRaw;
+					const result = await requestApi<IDataObject>('PUT', `/api/userworkflows/${workflowEntryUuid}`, body);
 					returnData.push({ json: result, pairedItem: { item: itemIndex } });
 					continue;
 				}
