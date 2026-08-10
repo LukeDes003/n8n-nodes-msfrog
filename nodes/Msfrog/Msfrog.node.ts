@@ -16,6 +16,7 @@ type MsfrogOperation =
 	| 'getSelf'
 	| 'create'
 	| 'update'
+	| 'search'
 	| 'fetchStep'
 	| 'updateStep'
 	| 'completeStep'
@@ -187,6 +188,12 @@ export class Msfrog implements INodeType {
 						description: 'List workflow entries for the current company or a selected company UUID',
 					},
 					{
+						name: 'Search',
+						value: 'search',
+						action: 'Search workflow entries',
+						description: 'Search workflow entries in a workflow by keywords and return the best matches',
+					},
+					{
 						name: 'Un-Complete Step',
 						value: 'uncompleteStep',
 						action: 'Un complete a workflow entry step',
@@ -280,11 +287,41 @@ export class Msfrog implements INodeType {
 				type: 'string',
 				default: '',
 				required: true,
-				description: 'The workflow UUID to create an entry for',
+				description: 'The workflow UUID to create an entry for or search within',
 				displayOptions: {
 					show: {
 						resource: ['workflowEntry'],
-						operation: ['create'],
+						operation: ['create', 'search'],
+					},
+				},
+			},
+			{
+				displayName: 'Keywords',
+				name: 'keywords',
+				type: 'json',
+				default: '[]',
+				description: 'JSON array of keywords or phrases to search for',
+				displayOptions: {
+					show: {
+						resource: ['workflowEntry'],
+						operation: ['search'],
+					},
+				},
+			},
+			{
+				displayName: 'Search Limit',
+				name: 'searchLimit',
+				type: 'number',
+				default: 10,
+				typeOptions: {
+					minValue: 1,
+					maxValue: 100,
+				},
+				description: 'Maximum number of matching entries to return',
+				displayOptions: {
+					show: {
+						resource: ['workflowEntry'],
+						operation: ['search'],
 					},
 				},
 			},
@@ -634,6 +671,20 @@ export class Msfrog implements INodeType {
 						returnData.push({ json: workflowEntry, pairedItem: { item: itemIndex } });
 					}
 
+					continue;
+				}
+
+				if (resource === 'workflowEntry' && operation === 'search') {
+					const workflowUuid = this.getNodeParameter('workflowUuid', itemIndex) as string;
+					const keywords = parseJsonInput<unknown[]>(this.getNodeParameter('keywords', itemIndex, '[]'), [], itemIndex);
+					const searchLimit = this.getNodeParameter('searchLimit', itemIndex, 10) as number;
+					const result = await requestApi<IDataObject>('POST', '/api/userworkflows/search', {
+						workflow_uuid: workflowUuid,
+						keywords,
+						limit: searchLimit,
+					});
+
+					returnData.push({ json: result, pairedItem: { item: itemIndex } });
 					continue;
 				}
 
