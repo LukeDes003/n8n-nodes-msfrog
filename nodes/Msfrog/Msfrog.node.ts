@@ -13,6 +13,7 @@ type MsfrogResource = 'workflow' | 'company' | 'user' | 'workflowEntry' | 'task'
 type MsfrogOperation =
 	| 'getTypes'
 	| 'getAll'
+	| 'get'
 	| 'getSelf'
 	| 'create'
 	| 'update'
@@ -182,6 +183,12 @@ export class Msfrog implements INodeType {
 						description: 'Fetch a step from a workflow entry by entry UUID and step UUID',
 					},
 					{
+						name: 'Get Workflow Entry',
+						value: 'get',
+						action: 'Get a workflow entry',
+						description: 'Fetch a workflow entry by UUID',
+					},
+					{
 						name: 'Get Many',
 						value: 'getAll',
 						action: 'Get workflow entries',
@@ -326,6 +333,19 @@ export class Msfrog implements INodeType {
 				},
 			},
 			{
+				displayName: 'Include Entry Steps',
+				name: 'includeEntrySteps',
+				type: 'boolean',
+				default: false,
+				description: 'When enabled, search results include each entry step with UUID, assignee and due date',
+				displayOptions: {
+					show: {
+						resource: ['workflowEntry'],
+						operation: ['search'],
+					},
+				},
+			},
+			{
 				displayName: 'Workflow Entry UUID',
 				name: 'workflowEntryUuid',
 				type: 'string',
@@ -335,7 +355,7 @@ export class Msfrog implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['workflowEntry'],
-						operation: ['update', 'fetchStep', 'createComment', 'updateComment', 'deleteComment'],
+						operation: ['get', 'update', 'fetchStep', 'createComment', 'updateComment', 'deleteComment'],
 					},
 				},
 			},
@@ -579,6 +599,34 @@ export class Msfrog implements INodeType {
 			return value as T;
 		};
 
+		const resolveMetaPayload = (value: unknown, fallback: unknown, itemIndex: number): IDataObject => {
+			const parsed = parseJsonInput<IDataObject>(value, {}, itemIndex);
+			const fallbackMeta = (fallback && typeof fallback === 'object' ? fallback : {}) as IDataObject;
+			const normalizedMeta = {
+				...(parsed && typeof parsed === 'object' ? parsed : {}),
+			} as IDataObject;
+
+			const currentEmailIds = Array.isArray(normalizedMeta.email_ids)
+				? normalizedMeta.email_ids.filter((entry) => String(entry).trim() !== '')
+				: [];
+			const currentThreadIds = Array.isArray(normalizedMeta.thread_ids)
+				? normalizedMeta.thread_ids.filter((entry) => String(entry).trim() !== '')
+				: [];
+			const fallbackEmailId = String(fallbackMeta.messageId ?? fallbackMeta.email_id ?? '').trim();
+			const fallbackThreadId = String(fallbackMeta.threadId ?? fallbackMeta.thread_id ?? '').trim();
+			const mergedEmailIds = Array.from(new Set([...currentEmailIds, ...(fallbackEmailId ? [fallbackEmailId] : [])].filter(Boolean)));
+			const mergedThreadIds = Array.from(new Set([...currentThreadIds, ...(fallbackThreadId ? [fallbackThreadId] : [])].filter(Boolean)));
+
+			if (mergedEmailIds.length > 0) {
+				normalizedMeta.email_ids = mergedEmailIds;
+			}
+			if (mergedThreadIds.length > 0) {
+				normalizedMeta.thread_ids = mergedThreadIds;
+			}
+
+			return normalizedMeta;
+		};
+
 		for (let itemIndex = 0; itemIndex < inputItems.length; itemIndex++) {
 			const requestApi = async <T>(
 				method: 'GET' | 'POST' | 'PUT' | 'DELETE',
@@ -601,9 +649,23 @@ export class Msfrog implements INodeType {
 				try {
 					return this.helpers.httpRequestWithAuthentication.call(this, 'msfrogApi', options) as Promise<T>;
 				} catch (error) {
-					const message = (error as Error)?.message ?? '';
-					if (!message.includes('Node does not have any credentials set')) {
-						throw new NodeApiError(this.getNode(), error as JsonObject, { itemIndex });
+					const errorMessage = (error as Error)?.message ?? '';
+					const errorObject = error as unknown as {
+						message?: string;
+						response?: { body?: unknown };
+						body?: unknown;
+					};
+					const responseBody = errorObject.response?.body ?? errorObject.body ?? null;
+					const responsePayload = typeof responseBody === 'string'
+						? responseBody
+						: responseBody && typeof responseBody === 'object'
+							? JSON.stringify(responseBody)
+							: '';
+					if (!errorMessage.includes('Node does not have any credentials set')) {
+						const detailedError = responsePayload && responsePayload !== '{}' && responsePayload !== 'null'
+							? new Error(`${errorMessage}: ${responsePayload}`)
+							: (error as Error);
+						throw new NodeApiError(this.getNode(), { message: detailedError.message } as JsonObject, { itemIndex });
 					}
 
 					// Fallback for environments where helper lookup can fail despite a linked credential.
@@ -687,14 +749,23 @@ export class Msfrog implements INodeType {
 					continue;
 				}
 
+				if (resource === 'workflowEntry' && operation === 'get') {
+					const workflowEntryUuid = this.getNodeParameter('workflowEntryUuid', itemIndex) as string;
+					const workflowEntry = await requestApi<IDataObject>('GET', `/api/userworkflows/${workflowEntryUuid}`);
+					returnData.push({ json: workflowEntry, pairedItem: { item: itemIndex } });
+					continue;
+				}
+
 				if (resource === 'workflowEntry' && operation === 'search') {
 					const workflowUuid = this.getNodeParameter('workflowUuid', itemIndex) as string;
 					const keywords = parseJsonInput<unknown[]>(this.getNodeParameter('keywords', itemIndex, '[]'), [], itemIndex);
 					const searchLimit = this.getNodeParameter('searchLimit', itemIndex, 10) as number;
+					const includeEntrySteps = this.getNodeParameter('includeEntrySteps', itemIndex, false) as boolean;
 					const result = await requestApi<IDataObject>('POST', '/api/userworkflows/search', {
 						workflow_uuid: workflowUuid,
 						keywords,
 						limit: searchLimit,
+						include_entry_steps: includeEntrySteps,
 					});
 
 					returnData.push({ json: result, pairedItem: { item: itemIndex } });
@@ -706,7 +777,9 @@ export class Msfrog implements INodeType {
 					const name = this.getNodeParameter('name', itemIndex) as string;
 					const description = this.getNodeParameter('description', itemIndex, '') as string;
 					const stepAssignments = parseJsonInput<IDataObject[]>(this.getNodeParameter('stepAssignments', itemIndex, '[]'), [], itemIndex);
-					const metaRaw = parseJsonInput<IDataObject>(this.getNodeParameter('meta', itemIndex, '{}'), {}, itemIndex);
+					const inputJson = inputItems[itemIndex]?.json as IDataObject;
+					const fallbackMeta = (inputJson?.meta ?? inputJson?.workflowEntryMeta ?? inputJson?.emailMeta ?? {}) as IDataObject;
+					const metaRaw = resolveMetaPayload(this.getNodeParameter('meta', itemIndex, '{}'), fallbackMeta, itemIndex);
 					const body: IDataObject = {
 						workflow_uuid: workflowUuid,
 						name,
@@ -724,12 +797,14 @@ export class Msfrog implements INodeType {
 					const name = this.getNodeParameter('name', itemIndex) as string;
 					const description = this.getNodeParameter('description', itemIndex, '') as string;
 					const stepAssignments = parseJsonInput<IDataObject[]>(this.getNodeParameter('stepAssignments', itemIndex, '[]'), [], itemIndex);
-					const metaRaw = parseJsonInput<IDataObject>(this.getNodeParameter('meta', itemIndex, '{}'), {}, itemIndex);
+					const inputJson = inputItems[itemIndex]?.json as IDataObject;
+					const fallbackMeta = (inputJson?.meta ?? inputJson?.workflowEntryMeta ?? inputJson?.emailMeta ?? {}) as IDataObject;
+					const metaRaw = resolveMetaPayload(this.getNodeParameter('meta', itemIndex, '{}'), fallbackMeta, itemIndex);
 					const body: IDataObject = {
 						name,
 						description,
-						step_assignments: stepAssignments,
 					};
+					if (stepAssignments.length > 0) body.step_assignments = stepAssignments;
 					if (metaRaw && Object.keys(metaRaw).length > 0) body.meta = metaRaw;
 					const result = await requestApi<IDataObject>('PUT', `/api/userworkflows/${workflowEntryUuid}`, body);
 					returnData.push({ json: result, pairedItem: { item: itemIndex } });
