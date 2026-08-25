@@ -183,16 +183,16 @@ export class Msfrog implements INodeType {
 						description: 'Fetch a step from a workflow entry by entry UUID and step UUID',
 					},
 					{
-						name: 'Get Workflow Entry',
-						value: 'get',
-						action: 'Get a workflow entry',
-						description: 'Fetch a workflow entry by UUID',
-					},
-					{
 						name: 'Get Many',
 						value: 'getAll',
 						action: 'Get workflow entries',
 						description: 'List workflow entries for the current company or a selected company UUID',
+					},
+					{
+						name: 'Get Workflow Entry',
+						value: 'get',
+						action: 'Get a workflow entry',
+						description: 'Fetch a workflow entry by UUID',
 					},
 					{
 						name: 'Search',
@@ -337,7 +337,7 @@ export class Msfrog implements INodeType {
 				name: 'includeEntrySteps',
 				type: 'boolean',
 				default: false,
-				description: 'When enabled, search results include each entry step with UUID, assignee and due date',
+				description: 'Whether search results include each entry step with UUID, assignee and due date',
 				displayOptions: {
 					show: {
 						resource: ['workflowEntry'],
