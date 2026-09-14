@@ -9,7 +9,7 @@ import type {
 } from 'n8n-workflow';
 import { NodeApiError, NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 
-type MsfrogResource = 'workflow' | 'company' | 'user' | 'workflowEntry' | 'task';
+type MsfrogResource = 'workflow' | 'company' | 'user' | 'workflowEntry' | 'task' | 'msmanual';
 type MsfrogOperation =
 	| 'getTypes'
 	| 'getAll'
@@ -27,7 +27,150 @@ type MsfrogOperation =
 	| 'deleteComment'
 	| 'deleteTask'
 	| 'completeTask'
-	| 'uncompleteTask';
+	| 'uncompleteTask'
+	| 'callMsmanual';
+
+type MsfrogHttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
+
+type MsmanualRouteDefinition = {
+	name: string;
+	value: string;
+	method: MsfrogHttpMethod;
+	path: string;
+	hasBody?: boolean;
+};
+
+const MSMANUAL_ROUTE_DEFINITIONS: MsmanualRouteDefinition[] = [
+	{ name: 'Get Company Info', value: 'getCompanyInfo', method: 'GET', path: '/companyinfo' },
+	{ name: 'Get Org Chart', value: 'getOrgChart', method: 'GET', path: '/orgchart' },
+	{ name: 'Get Product Services', value: 'getProdServ', method: 'GET', path: '/prodserv' },
+	{ name: 'Get Design Development', value: 'getDesDev', method: 'GET', path: '/desdev' },
+	{ name: 'Get Certification Scope', value: 'getCertScope', method: 'GET', path: '/certscope' },
+	{ name: 'Get Key Processes', value: 'getKeyProcs', method: 'GET', path: '/keyprocs' },
+	{ name: 'Get Interested Parties', value: 'getIntParts', method: 'GET', path: '/intparts' },
+	{ name: 'Get USPS', value: 'getUSPs', method: 'GET', path: '/usps' },
+	{ name: 'Get FQP', value: 'getFQP', method: 'GET', path: '/fqp' },
+	{ name: 'Get Norm Refs', value: 'getNormRefs', method: 'GET', path: '/normrefs' },
+	{ name: 'Get Norm Ref', value: 'getNormRef', method: 'GET', path: '/normrefs/{normRefId}' },
+	{ name: 'Get Context Analysis', value: 'getContextAnalysis', method: 'GET', path: '/contextanalysis' },
+	{ name: 'Get Risk Opportunity', value: 'getRiskOpportunityDetails', method: 'GET', path: '/riskopportunity/{type}' },
+	{ name: 'Get Quality Objectives', value: 'getQObjectives', method: 'GET', path: '/qobjectives' },
+	{ name: 'Get Customer Feedback', value: 'getCustFeedback', method: 'GET', path: '/custfeedback' },
+	{ name: 'Get Used Customer Feedback Methods', value: 'getUsedCustomerFeedbackMethods', method: 'GET', path: '/custfeedback/usedmethods' },
+	{ name: 'Get Customer Feedback Criteria', value: 'getCustFeedbackCriteria', method: 'GET', path: '/custfeedbackcriteria' },
+	{ name: 'Get Supplier Types', value: 'getSupplierTypes', method: 'GET', path: '/suppliertypes' },
+	{ name: 'Get Supplier Evaluation', value: 'getSupplierEvaluation', method: 'GET', path: '/suppev' },
+	{ name: 'Get Used Supplier Types', value: 'getUsedSupplierTypes', method: 'GET', path: '/suppev/usedtypes' },
+	{ name: 'Get Supplier Evaluation Criteria', value: 'getSupplierEvaluationCriteria', method: 'GET', path: '/suppevcriteria' },
+	{ name: 'Get Terms Definitions', value: 'getTermsDefinitions', method: 'GET', path: '/termsdefinitions' },
+	{ name: 'Get Hazard Identification', value: 'getHazardIdentification', method: 'GET', path: '/hazardidentification' },
+	{ name: 'Get Elimination Hazard', value: 'getEliminationHazard', method: 'GET', path: '/eliminationhazard' },
+	{ name: 'Get Multi Employer Work', value: 'getMultiEmployerWork', method: 'GET', path: '/multiemployerwork' },
+	{ name: 'Get Workers Rep', value: 'getWorkersRep', method: 'GET', path: '/workersrep' },
+	{ name: 'Get Assets', value: 'getAssets', method: 'GET', path: '/assets' },
+	{ name: 'Get Annex A Controls', value: 'getAnnexAControls', method: 'GET', path: '/annexacontrols' },
+	{ name: 'Get Communications', value: 'getCommunications', method: 'GET', path: '/communications' },
+	{ name: 'Get FM', value: 'getFM', method: 'GET', path: '/fm' },
+	{ name: 'Get FSOA', value: 'getFSOA', method: 'GET', path: '/fsoa' },
+	{ name: 'Get Status', value: 'getStatus', method: 'GET', path: '/status' },
+	{ name: 'Set Company Info', value: 'setCompanyInfo', method: 'POST', path: '/companyinfo', hasBody: true },
+	{ name: 'Set Org Chart', value: 'setOrgChart', method: 'POST', path: '/orgchart', hasBody: true },
+	{ name: 'Check Job Title', value: 'checkJobTitle', method: 'POST', path: '/checkjobtitle/{titleUuid}' },
+	{ name: 'Set Product Service', value: 'setProdServ', method: 'POST', path: '/prodserv', hasBody: true },
+	{ name: 'Complete Product Service', value: 'completeProdServ', method: 'POST', path: '/prodserv/markcomplete' },
+	{ name: 'Incomplete Product Service', value: 'incompleteProdServ', method: 'POST', path: '/prodserv/markincomplete' },
+	{ name: 'Delete Product Service', value: 'deleteProdServ', method: 'DELETE', path: '/prodserv/{mcprodservId}' },
+	{ name: 'Delete All Product Services', value: 'deleteAllProdServ', method: 'DELETE', path: '/prodserv' },
+	{ name: 'Set Design Development', value: 'setDesDev', method: 'POST', path: '/desdev', hasBody: true },
+	{ name: 'Set Certification Scope', value: 'setCertScope', method: 'POST', path: '/certscope', hasBody: true },
+	{ name: 'Set Key Processes', value: 'setKeyProcs', method: 'POST', path: '/keyprocs', hasBody: true },
+	{ name: 'Set Interested Parties', value: 'setIntParts', method: 'POST', path: '/intparts', hasBody: true },
+	{ name: 'Set USPS', value: 'setUSPs', method: 'POST', path: '/usps', hasBody: true },
+	{ name: 'Complete FQP', value: 'completeFQP', method: 'POST', path: '/fqp/markcomplete' },
+	{ name: 'Incomplete FQP', value: 'incompleteFQP', method: 'POST', path: '/fqp/markincomplete' },
+	{ name: 'Create Norm Ref', value: 'createNormRef', method: 'POST', path: '/normref', hasBody: true },
+	{ name: 'Complete Norm Ref', value: 'completeNormRef', method: 'POST', path: '/normref/markcomplete' },
+	{ name: 'Incomplete Norm Ref', value: 'incompleteNormRef', method: 'POST', path: '/normref/markincomplete' },
+	{ name: 'Update Norm Ref', value: 'updateNormRef', method: 'POST', path: '/normref/{normRefId}', hasBody: true },
+	{ name: 'Delete Norm Ref', value: 'deleteNormRef', method: 'DELETE', path: '/normref/{normRefId}' },
+	{ name: 'Set Context Analysis', value: 'setContextAnalysis', method: 'POST', path: '/contextanalysis', hasBody: true },
+	{ name: 'Complete Context Analysis', value: 'completeContextAnalysis', method: 'POST', path: '/contextanalysis/markcomplete' },
+	{ name: 'Incomplete Context Analysis', value: 'incompleteContextAnalysis', method: 'POST', path: '/contextanalysis/markincomplete' },
+	{ name: 'Delete Context Analysis', value: 'deleteContextAnalysis', method: 'DELETE', path: '/contextanalysis/{riskoppsId}' },
+	{ name: 'Complete Risk Opportunity Details', value: 'completeRiskOpportunityDetails', method: 'POST', path: '/riskopportunity/markascomplete/{type}' },
+	{ name: 'Incomplete Risk Opportunity Details', value: 'incompleteRiskOpportunityDetails', method: 'POST', path: '/riskopportunity/markasincomplete/{type}' },
+	{ name: 'Set Risk Appetite', value: 'setRiskAppetite', method: 'POST', path: '/riskopportunity/riskapetite', hasBody: true },
+	{ name: 'Set Risk Opportunity', value: 'setRiskOpportunity', method: 'POST', path: '/riskopportunity/{riskoppId}', hasBody: true },
+	{ name: 'Delete Risk Opportunity Action', value: 'deleteRiskOpportunityAction', method: 'DELETE', path: '/riskopportunity/{riskoppId}/action/{actionId}' },
+	{ name: 'Set Quality Objectives', value: 'setQObjectives', method: 'POST', path: '/qobjectives', hasBody: true },
+	{ name: 'Complete Quality Objectives', value: 'completeQObjectives', method: 'POST', path: '/qobjectives/markcomplete' },
+	{ name: 'Incomplete Quality Objectives', value: 'incompleteQObjectives', method: 'POST', path: '/qobjectives/markincomplete' },
+	{ name: 'Delete Quality Objective', value: 'deleteQObjective', method: 'DELETE', path: '/qobjectives/{qobjectivesId}' },
+	{ name: 'Set Customer Feedback', value: 'setCustomerFeedback', method: 'POST', path: '/custfeedback', hasBody: true },
+	{ name: 'Complete Customer Feedback', value: 'completeCustomerFeedback', method: 'POST', path: '/custfeedback/markcomplete' },
+	{ name: 'Incomplete Customer Feedback', value: 'incompleteCustomerFeedback', method: 'POST', path: '/custfeedback/markincomplete' },
+	{ name: 'Delete Customer Feedback', value: 'deleteCustomerFeedback', method: 'DELETE', path: '/custfeedback/{custfeedbackId}' },
+	{ name: 'Set Customer Feedback Criteria', value: 'setCustomerFeedbackCriteria', method: 'POST', path: '/custfeedbackcriteria', hasBody: true },
+	{ name: 'Complete Customer Feedback Criteria', value: 'completeCustomerFeedbackCriteria', method: 'POST', path: '/custfeedbackcriteria/markcomplete' },
+	{ name: 'Incomplete Customer Feedback Criteria', value: 'incompleteCustomerFeedbackCriteria', method: 'POST', path: '/custfeedbackcriteria/markincomplete' },
+	{ name: 'Delete Customer Feedback Criteria', value: 'deleteCustomerFeedbackCriteria', method: 'DELETE', path: '/custfeedbackcriteria/{custfeedbackcriteriaId}' },
+	{ name: 'Set Supplier Types', value: 'setSupplierTypes', method: 'POST', path: '/suppliertypes', hasBody: true },
+	{ name: 'Delete Supplier Type', value: 'deleteSupplierType', method: 'DELETE', path: '/suppliertypes/{sullpiertypeId}' },
+	{ name: 'Set Supplier Evaluation', value: 'setSupplierEvaluation', method: 'POST', path: '/suppev', hasBody: true },
+	{ name: 'Complete Supplier Evaluation', value: 'completeSupplierEvaluation', method: 'POST', path: '/suppev/markcomplete' },
+	{ name: 'Incomplete Supplier Evaluation', value: 'incompleteSupplierEvaluation', method: 'POST', path: '/suppev/markincomplete' },
+	{ name: 'Delete Supplier Evaluation', value: 'deleteSupplierEvaluation', method: 'DELETE', path: '/suppev/{suppevId}' },
+	{ name: 'Set Supplier Evaluation Criteria', value: 'setSupplierEvaluationCriteria', method: 'POST', path: '/suppevcriteria', hasBody: true },
+	{ name: 'Complete Supplier Evaluation Criteria', value: 'completeSupplierEvaluationCriteria', method: 'POST', path: '/suppevcriteria/markcomplete' },
+	{ name: 'Incomplete Supplier Evaluation Criteria', value: 'incompleteSupplierEvaluationCriteria', method: 'POST', path: '/suppevcriteria/markincomplete' },
+	{ name: 'Delete Supplier Evaluation Criteria', value: 'deleteSupplierEvaluationCriteria', method: 'DELETE', path: '/suppevcriteria/{suppevcriteriaId}' },
+	{ name: 'Complete Terms Definitions', value: 'completeTermsDefinitions', method: 'PUT', path: '/termsdefinitions/complete' },
+	{ name: 'Incomplete Terms Definitions', value: 'incompleteTermsDefinitions', method: 'PUT', path: '/termsdefinitions/incomplete' },
+	{ name: 'Set Terms Definitions', value: 'setTermsDefinitions', method: 'POST', path: '/termsdefinitions', hasBody: true },
+	{ name: 'Delete Terms Definitions', value: 'deleteTermsDefinitions', method: 'DELETE', path: '/termsdefinitions/{uuid}' },
+	{ name: 'Complete Hazard Identification', value: 'completeHazardIdentification', method: 'PUT', path: '/hazardidentification/complete' },
+	{ name: 'Incomplete Hazard Identification', value: 'incompleteHazardIdentification', method: 'PUT', path: '/hazardidentification/incomplete' },
+	{ name: 'Set Hazard Identification', value: 'setHazardIdentification', method: 'POST', path: '/hazardidentification', hasBody: true },
+	{ name: 'Set Hazard Identification Assignment', value: 'setHazardIdentificationAssignment', method: 'POST', path: '/hazardidentification/{assignUuid}', hasBody: true },
+	{ name: 'Delete All Hazard Identification Assignments', value: 'deleteAllHazardIdentificationAssignments', method: 'DELETE', path: '/hazardidentification/all' },
+	{ name: 'Delete Hazard Identification Assignment', value: 'deleteHazardIdentificationAssignment', method: 'DELETE', path: '/hazardidentification/{assignUuid}' },
+	{ name: 'Set Hazard Identification Assignment Action', value: 'setHazardIdentificationAssignmentAction', method: 'POST', path: '/hazardidentification/{assignUuid}/action/{actionUuid}', hasBody: true },
+	{ name: 'Delete Hazard Identification Assignment Action', value: 'deleteHazardIdentificationAssignmentAction', method: 'DELETE', path: '/hazardidentification/{assignUuid}/action/{actionUuid}' },
+	{ name: 'Complete Elimination Hazard', value: 'completeEliminationHazard', method: 'PUT', path: '/eliminationhazard/complete' },
+	{ name: 'Incomplete Elimination Hazard', value: 'incompleteEliminationHazard', method: 'PUT', path: '/eliminationhazard/incomplete' },
+	{ name: 'Set Elimination Hazard', value: 'setEliminationHazard', method: 'POST', path: '/eliminationhazard', hasBody: true },
+	{ name: 'Complete Multi Employer Work', value: 'completeMultiEmployerWork', method: 'PUT', path: '/multiemployerwork/complete' },
+	{ name: 'Incomplete Multi Employer Work', value: 'incompleteMultiEmployerWork', method: 'PUT', path: '/multiemployerwork/incomplete' },
+	{ name: 'Set Multi Employer Work', value: 'setMultiEmployerWork', method: 'POST', path: '/multiemployerwork', hasBody: true },
+	{ name: 'Complete Workers Rep', value: 'completeWorkersRep', method: 'PUT', path: '/workersrep/complete' },
+	{ name: 'Incomplete Workers Rep', value: 'incompleteWorkersRep', method: 'PUT', path: '/workersrep/incomplete' },
+	{ name: 'Set Workers Rep', value: 'setWorkersRep', method: 'POST', path: '/workersrep', hasBody: true },
+	{ name: 'Set Assets', value: 'setAssets', method: 'POST', path: '/assets', hasBody: true },
+	{ name: 'Complete Annex A Controls', value: 'completeAnnexAControls', method: 'PUT', path: '/annexacontrols/complete' },
+	{ name: 'Incomplete Annex A Controls', value: 'incompleteAnnexAControls', method: 'PUT', path: '/annexacontrols/incomplete' },
+	{ name: 'Set Annex A Controls', value: 'setAnnexAControls', method: 'POST', path: '/annexacontrols', hasBody: true },
+	{ name: 'Set Annex A Controls Assignment', value: 'setAnnexAControlsAssignment', method: 'POST', path: '/annexacontrols/{assignUuid}', hasBody: true },
+	{ name: 'Delete All Annex A Controls Assignments', value: 'deleteAllAnnexAControlsAssignments', method: 'DELETE', path: '/annexacontrols/all' },
+	{ name: 'Delete Annex A Controls Assignment', value: 'deleteAnnexAControlsAssignment', method: 'DELETE', path: '/annexacontrols/{assignUuid}' },
+	{ name: 'Set Annex A Controls Assignment Action', value: 'setAnnexAControlsAssignmentAction', method: 'POST', path: '/annexacontrols/{assignUuid}/action/{actionUuid}', hasBody: true },
+	{ name: 'Delete Annex A Controls Assignment Action', value: 'deleteAnnexAControlsAssignmentAction', method: 'DELETE', path: '/annexacontrols/{assignUuid}/action/{actionUuid}' },
+	{ name: 'Complete Communications', value: 'completeCommunications', method: 'PUT', path: '/communications/complete' },
+	{ name: 'Incomplete Communications', value: 'incompleteCommunications', method: 'PUT', path: '/communications/incomplete' },
+	{ name: 'Set Communications', value: 'setCommunications', method: 'POST', path: '/communications', hasBody: true },
+	{ name: 'Delete Communications', value: 'deleteCommunications', method: 'DELETE', path: '/communications/{uuid}' },
+	{ name: 'Complete FM', value: 'completeFM', method: 'POST', path: '/fm/markcomplete' },
+	{ name: 'Incomplete FM', value: 'incompleteFM', method: 'POST', path: '/fm/markincomplete' },
+	{ name: 'Complete FSOA', value: 'completeFSOA', method: 'POST', path: '/fsoa/markcomplete' },
+	{ name: 'Incomplete FSOA', value: 'incompleteFSOA', method: 'POST', path: '/fsoa/markincomplete' },
+];
+
+const MSMANUAL_ROUTE_MAP = Object.fromEntries(
+	MSMANUAL_ROUTE_DEFINITIONS.map((route) => [route.value, route]),
+) as Record<string, MsmanualRouteDefinition>;
+
+const getMsmanualRouteGroupLabel = (route: MsmanualRouteDefinition): 'Read' | 'Update' => {
+	return route.method === 'GET' ? 'Read' : 'Update';
+};
 
 export class Msfrog implements INodeType {
 	description: INodeTypeDescription = {
@@ -68,6 +211,7 @@ export class Msfrog implements INodeType {
 				default: 'workflow',
 				options: [
 					{ name: 'Company', value: 'company' },
+					{ name: 'MS Manual', value: 'msmanual' },
 					{ name: 'Task', value: 'task' },
 					{ name: 'User', value: 'user' },
 					{ name: 'Workflow', value: 'workflow' },
@@ -139,6 +283,84 @@ export class Msfrog implements INodeType {
 						description: 'Get the currently authenticated user',
 					},
 				],
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				default: 'callMsmanual',
+				displayOptions: {
+					show: {
+						resource: ['msmanual'],
+					},
+				},
+				options: [
+					{
+						name: 'Call MS Manual Endpoint',
+						value: 'callMsmanual',
+						action: 'Call an MS Manual endpoint',
+						description: 'Call a selected /api/iso/{isoEngagementId}/msmanual endpoint',
+					},
+				],
+			},
+			{
+				displayName: 'MS Manual Route',
+				name: 'msmanualRoute',
+				type: 'options',
+				noDataExpression: true,
+				default: 'getCompanyInfo',
+				displayOptions: {
+					show: {
+						resource: ['msmanual'],
+						operation: ['callMsmanual'],
+					},
+				},
+				options: MSMANUAL_ROUTE_DEFINITIONS.map((route) => ({
+					name: `[${getMsmanualRouteGroupLabel(route)}] ${route.name} (${route.method} ${route.path})`,
+					value: route.value,
+					action: `${route.method} ${route.path}`,
+				})),
+			},
+			{
+				displayName: 'ISO Engagement ID',
+				name: 'msmanualIsoEngagementId',
+				type: 'string',
+				default: '',
+				required: true,
+				description: 'ISO engagement ID used in /api/iso/{isoEngagementId}/msmanual/*',
+				displayOptions: {
+					show: {
+						resource: ['msmanual'],
+						operation: ['callMsmanual'],
+					},
+				},
+			},
+			{
+				displayName: 'Route Params (JSON)',
+				name: 'msmanualRouteParams',
+				type: 'json',
+				default: '{}',
+				description: 'JSON object for placeholders in the route path, e.g. {"normRefId":"123"}',
+				displayOptions: {
+					show: {
+						resource: ['msmanual'],
+						operation: ['callMsmanual'],
+					},
+				},
+			},
+			{
+				displayName: 'Body (JSON)',
+				name: 'msmanualBody',
+				type: 'json',
+				default: '{}',
+				description: 'Request body JSON. Used by routes that accept payloads; ignored for GET routes.',
+				displayOptions: {
+					show: {
+						resource: ['msmanual'],
+						operation: ['callMsmanual'],
+					},
+				},
 			},
 			{
 				displayName: 'Operation',
@@ -731,6 +953,46 @@ export class Msfrog implements INodeType {
 				if (resource === 'user' && operation === 'getSelf') {
 					const user = await requestApi<IDataObject>('GET', '/api/user/self');
 					returnData.push({ json: user, pairedItem: { item: itemIndex } });
+					continue;
+				}
+
+				if (resource === 'msmanual' && operation === 'callMsmanual') {
+					const isoEngagementId = this.getNodeParameter('msmanualIsoEngagementId', itemIndex) as string;
+					const msmanualRoute = this.getNodeParameter('msmanualRoute', itemIndex) as string;
+					const routeParams = parseJsonInput<Record<string, unknown>>(
+						this.getNodeParameter('msmanualRouteParams', itemIndex, '{}'),
+						{},
+						itemIndex,
+					);
+					const routeDefinition = MSMANUAL_ROUTE_MAP[msmanualRoute];
+
+					if (!routeDefinition) {
+						throw new NodeOperationError(this.getNode(), new Error(`Unsupported MS Manual route: ${msmanualRoute}`), {
+							itemIndex,
+						});
+					}
+
+					const routePath = routeDefinition.path.replace(/\{([^}]+)\}/g, (_match, token) => {
+						const rawValue = routeParams[token];
+						const value = rawValue === undefined || rawValue === null ? '' : String(rawValue).trim();
+
+						if (value === '') {
+							throw new NodeOperationError(
+								this.getNode(),
+								new Error(`Missing required route param '${token}' for route '${routeDefinition.path}'.`),
+								{ itemIndex },
+							);
+						}
+
+						return encodeURIComponent(value);
+					});
+
+					const fullPath = `/api/iso/${encodeURIComponent(String(isoEngagementId))}/msmanual${routePath}`;
+					const requestBody = routeDefinition.hasBody
+						? parseJsonInput<IDataObject>(this.getNodeParameter('msmanualBody', itemIndex, '{}'), {}, itemIndex)
+						: undefined;
+					const result = await requestApi<IDataObject>(routeDefinition.method, fullPath, requestBody);
+					returnData.push({ json: result, pairedItem: { item: itemIndex } });
 					continue;
 				}
 
