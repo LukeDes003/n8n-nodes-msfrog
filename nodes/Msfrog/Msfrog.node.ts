@@ -2,6 +2,7 @@ import type {
 	IExecuteFunctions,
 	IDataObject,
 	IHttpRequestOptions,
+	INodeProperties,
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
@@ -28,7 +29,8 @@ type MsfrogOperation =
 	| 'deleteTask'
 	| 'completeTask'
 	| 'uncompleteTask'
-	| 'callMsmanual';
+	| 'callMsmanual'
+	| `callMsmanual:${string}`;
 
 type MsfrogHttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
@@ -422,8 +424,38 @@ const buildMsmanualRouteLabel = (routeKey: string): string => {
 		return routeKey;
 	}
 
-	return `MS Manual > ${layout.section} > ${route.name}`;
+	return `${layout.section} > ${route.name}`;
 };
+
+const MSMANUAL_SECTION_ORDER = Array.from(
+	new Set(MSMANUAL_ROUTE_DISPLAY_ORDER.map((routeKey) => MSMANUAL_ROUTE_LAYOUT[routeKey].section)),
+);
+
+const MSMANUAL_ROUTES_BY_SECTION = Object.fromEntries(
+	MSMANUAL_SECTION_ORDER.map((section) => [
+		section,
+		MSMANUAL_ROUTE_DISPLAY_ORDER.filter((routeKey) => MSMANUAL_ROUTE_LAYOUT[routeKey].section === section).map((routeKey) => {
+			const route = MSMANUAL_ROUTE_MAP[routeKey];
+			return {
+				name: route.name,
+				value: route.value,
+				action: `${route.method} ${route.path}`,
+			};
+		}),
+	]),
+) as Record<string, Array<{ name: string; value: string; action: string }>>;
+
+const MSMANUAL_SECTION_OPERATION_OPTIONS = MSMANUAL_SECTION_ORDER.map((section) => ({
+	name: `${section} Actions`,
+	value: `callMsmanual:${section}`,
+	action: `${section} actions`,
+	description: `Select an action under ${section}`,
+}));
+
+const MSMANUAL_OPERATION_VALUES = [
+	'callMsmanual',
+	...MSMANUAL_SECTION_OPERATION_OPTIONS.map((option) => option.value),
+];
 
 export class Msfrog implements INodeType {
 	description: INodeTypeDescription = {
@@ -542,43 +574,28 @@ export class Msfrog implements INodeType {
 				name: 'operation',
 				type: 'options',
 				noDataExpression: true,
-				default: 'callMsmanual',
+				default: MSMANUAL_SECTION_OPERATION_OPTIONS[0]?.value ?? 'callMsmanual',
 				displayOptions: {
 					show: {
 						resource: ['msmanual'],
 					},
 				},
-				options: [
-					{
-						name: 'Call MS Manual Endpoint',
-						value: 'callMsmanual',
-						action: 'Call an MS Manual endpoint',
-						description: 'Call a selected /api/iso/{isoEngagementId}/msmanual endpoint',
-					},
-				],
+				options: MSMANUAL_SECTION_OPERATION_OPTIONS,
 			},
-			{
-				displayName: 'MS Manual Route',
+			...MSMANUAL_SECTION_ORDER.map((section): INodeProperties => ({
+				displayName: 'Action',
 				name: 'msmanualRoute',
 				type: 'options',
 				noDataExpression: true,
-				default: 'getCompanyInfo',
+				default: MSMANUAL_ROUTES_BY_SECTION[section][0]?.value ?? '',
 				displayOptions: {
 					show: {
 						resource: ['msmanual'],
-						operation: ['callMsmanual'],
+						operation: [`callMsmanual:${section}`],
 					},
 				},
-				options: MSMANUAL_ROUTE_DISPLAY_ORDER.map((routeKey) => {
-					const route = MSMANUAL_ROUTE_MAP[routeKey];
-
-					return {
-						name: `${buildMsmanualRouteLabel(routeKey)} (${route.method} ${route.path})`,
-						value: route.value,
-						action: `${route.method} ${route.path}`,
-					};
-				}),
-			},
+				options: MSMANUAL_ROUTES_BY_SECTION[section],
+			})),
 			{
 				displayName: 'ISO Engagement ID',
 				name: 'msmanualIsoEngagementId',
@@ -589,7 +606,7 @@ export class Msfrog implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['msmanual'],
-						operation: ['callMsmanual'],
+						operation: MSMANUAL_OPERATION_VALUES,
 					},
 				},
 			},
@@ -602,7 +619,7 @@ export class Msfrog implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['msmanual'],
-						operation: ['callMsmanual'],
+						operation: MSMANUAL_OPERATION_VALUES,
 					},
 				},
 			},
@@ -615,7 +632,7 @@ export class Msfrog implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['msmanual'],
-						operation: ['callMsmanual'],
+						operation: MSMANUAL_OPERATION_VALUES,
 					},
 				},
 			},
@@ -1213,7 +1230,7 @@ export class Msfrog implements INodeType {
 					continue;
 				}
 
-				if (resource === 'msmanual' && operation === 'callMsmanual') {
+				if (resource === 'msmanual' && (operation === 'callMsmanual' || operation.startsWith('callMsmanual:'))) {
 					const isoEngagementId = this.getNodeParameter('msmanualIsoEngagementId', itemIndex) as string;
 					const msmanualRoute = this.getNodeParameter('msmanualRoute', itemIndex) as string;
 					const routeParams = parseJsonInput<Record<string, unknown>>(
