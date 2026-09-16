@@ -1266,7 +1266,29 @@ export class Msfrog implements INodeType {
 						? parseJsonInput<IDataObject>(this.getNodeParameter('msmanualBody', itemIndex, '{}'), {}, itemIndex)
 						: undefined;
 					const result = await requestApi<IDataObject>(routeDefinition.method, fullPath, requestBody);
-					returnData.push({ json: result, pairedItem: { item: itemIndex } });
+					const requestMeta = {
+						operation,
+						routeValue: msmanualRoute,
+						isoEngagementId,
+						method: routeDefinition.method,
+						path: fullPath,
+						routeParams,
+						body: requestBody ?? {},
+						backendError: null,
+					};
+					const enrichedResult: IDataObject = {
+						...requestMeta,
+						...result,
+						response: result?.response ?? result,
+						backendError: result && typeof result === 'object' && ('error' in result || 'details' in result || 'err_code' in result)
+							? {
+									error: result.error ?? null,
+									details: result.details ?? null,
+									err_code: result.err_code ?? null,
+								}
+							: null,
+					};
+					returnData.push({ json: enrichedResult, pairedItem: { item: itemIndex } });
 					continue;
 				}
 
