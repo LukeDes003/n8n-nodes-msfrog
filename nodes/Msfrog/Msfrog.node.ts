@@ -416,17 +416,6 @@ const MSMANUAL_ROUTE_LAYOUT: Record<string, { section: string }> = {
 	getStatus: { section: 'Status' },
 };
 
-const buildMsmanualRouteLabel = (routeKey: string): string => {
-	const route = MSMANUAL_ROUTE_MAP[routeKey];
-	const layout = MSMANUAL_ROUTE_LAYOUT[routeKey];
-
-	if (!route || !layout) {
-		return routeKey;
-	}
-
-	return `${layout.section} > ${route.name}`;
-};
-
 const MSMANUAL_SECTION_ORDER = Array.from(
 	new Set(MSMANUAL_ROUTE_DISPLAY_ORDER.map((routeKey) => MSMANUAL_ROUTE_LAYOUT[routeKey].section)),
 );
@@ -574,7 +563,7 @@ export class Msfrog implements INodeType {
 				name: 'operation',
 				type: 'options',
 				noDataExpression: true,
-				default: MSMANUAL_SECTION_OPERATION_OPTIONS[0]?.value ?? 'callMsmanual',
+				default: '',
 				displayOptions: {
 					show: {
 						resource: ['msmanual'],
@@ -587,7 +576,7 @@ export class Msfrog implements INodeType {
 				name: 'msmanualRoute',
 				type: 'options',
 				noDataExpression: true,
-				default: MSMANUAL_ROUTES_BY_SECTION[section][0]?.value ?? '',
+				default: '',
 				displayOptions: {
 					show: {
 						resource: ['msmanual'],
