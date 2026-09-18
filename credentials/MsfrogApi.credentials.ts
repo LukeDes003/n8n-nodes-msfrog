@@ -11,7 +11,7 @@ export class MsfrogApi implements ICredentialType {
 
 	displayName = 'MSFrog API';
 
-	documentationUrl = 'https://www.npmjs.com/package/n8n-nodes-msfrog';
+	documentationUrl = 'https://github.com/LukeDes003/n8n-nodes-msfrog#credentials';
 
 	icon: Icon = { light: 'file:../icons/msfrog.svg', dark: 'file:../icons/msfrog.dark.svg' };
 

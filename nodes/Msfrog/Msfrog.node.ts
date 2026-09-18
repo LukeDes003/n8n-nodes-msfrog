@@ -470,12 +470,12 @@ export class Msfrog implements INodeType {
 		],
 		properties: [
 			{
-				displayName: 'Base URL',
+				displayName: 'Base URL Override',
 				name: 'baseUrl',
 				type: 'string',
-				default: 'http://host.docker.internal:8000',
+				default: '',
 				placeholder: 'https://example.com',
-				description: 'Base URL for the MSFrog API without a trailing slash',
+				description: 'Optional. Overrides the Base URL from credentials for this node only.',
 			},
 			{
 				displayName: 'Resource',
@@ -1118,8 +1118,13 @@ export class Msfrog implements INodeType {
 				path: string,
 				body?: IDataObject,
 			): Promise<T> => {
-				const baseUrl = this.getNodeParameter('baseUrl', itemIndex) as string;
-				const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+				const credentials = await this.getCredentials('msfrogApi');
+				const credentialBaseUrlRaw = String(credentials.baseUrl ?? '').trim();
+				const parameterBaseUrlRaw = String(this.getNodeParameter('baseUrl', itemIndex, '')).trim();
+				const effectiveBaseUrl = parameterBaseUrlRaw || credentialBaseUrlRaw || 'http://host.docker.internal:8000';
+				const normalizedBaseUrl = effectiveBaseUrl.endsWith('/')
+					? effectiveBaseUrl.slice(0, -1)
+					: effectiveBaseUrl;
 
 				const options: IHttpRequestOptions = {
 					method,
@@ -1154,17 +1159,11 @@ export class Msfrog implements INodeType {
 					}
 
 					// Fallback for environments where helper lookup can fail despite a linked credential.
-					const credentials = await this.getCredentials('msfrogApi');
 					const credentialToken = String(credentials.accessToken ?? '');
-					const credentialBaseUrlRaw = String(credentials.baseUrl ?? '').trim();
-					const credentialBaseUrl = credentialBaseUrlRaw !== '' ? credentialBaseUrlRaw : normalizedBaseUrl;
-					const normalizedCredentialBaseUrl = credentialBaseUrl.endsWith('/')
-						? credentialBaseUrl.slice(0, -1)
-						: credentialBaseUrl;
 
 					const manualOptions: IHttpRequestOptions = {
 						...options,
-						url: `${normalizedCredentialBaseUrl}${path}`,
+						url: `${normalizedBaseUrl}${path}`,
 						headers: {
 							...(options.headers ?? {}),
 							Authorization: `Bearer ${credentialToken}`,

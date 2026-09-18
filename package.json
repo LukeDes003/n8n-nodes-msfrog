@@ -16,7 +16,7 @@
     "url": "https://github.com/LukeDes003/n8n-nodes-msfrog/issues"
   },
   "engines": {
-    "node": ">=22 <23"
+    "node": ">=20"
   },
   "keywords": [
     "n8n",

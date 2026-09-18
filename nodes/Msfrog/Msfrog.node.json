@@ -6,7 +6,7 @@
 	"resources": {
 		"credentialDocumentation": [
 			{
-				"url": "https://www.npmjs.com/package/n8n-nodes-msfrog",
+				"url": "https://github.com/LukeDes003/n8n-nodes-msfrog#credentials",
 				"description": "MSFrog API documentation"
 			}
 		]

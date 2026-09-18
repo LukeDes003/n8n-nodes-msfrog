@@ -57,8 +57,9 @@ If n8n runs in Docker and your MSFrog backend runs on your host machine, use `ho
 
 1. Add an **MSFrog** node to your workflow.
 2. Select your saved **MSFrog API** credential.
-3. Choose the resource and operation you need.
-4. Execute the node to confirm connectivity.
+3. (Optional) Set **Base URL Override** on the node only if you need this node to call a different MSFrog host than the credential.
+4. Choose the resource and operation you need.
+5. Execute the node to confirm connectivity.
 
 A good first test is:
 
@@ -78,7 +79,7 @@ Import one into n8n and replace credentials with your own.
 
 ## Compatibility
 
-- Node.js: `>=22 <23`
+- Node.js: `>=20`
 - n8n: community-node compatible versions
 
 ## Support
